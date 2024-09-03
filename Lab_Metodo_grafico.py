@@ -50,16 +50,20 @@ class LinearProgrammingApp:
             tk.Radiobutton(frame, text="ax + by >= c", variable=var_type, value="ax+by>=c").grid(row=0, column=2)
             tk.Radiobutton(frame, text="y <= kx", variable=var_type, value="y<=kx").grid(row=0, column=3)
             tk.Radiobutton(frame, text="y >= kx", variable=var_type, value="y>=kx").grid(row=0, column=4)
+            tk.Radiobutton(frame, text="x <= c", variable=var_type, value="x<=c").grid(row=0, column=5)
+            tk.Radiobutton(frame, text="x >= c", variable=var_type, value="x>=c").grid(row=0, column=6)
+            tk.Radiobutton(frame, text="y <= c", variable=var_type, value="y<=c").grid(row=0, column=7)
+            tk.Radiobutton(frame, text="y >= c", variable=var_type, value="y>=c").grid(row=0, column=8)
 
-            tk.Label(frame, text="a:").grid(row=1, column=0)
+            tk.Label(frame, text="a / k:").grid(row=1, column=0)
             entry_a = tk.Entry(frame, width=5)
             entry_a.grid(row=1, column=1)
 
-            tk.Label(frame, text="b:").grid(row=1, column=2)
+            tk.Label(frame, text="b / c:").grid(row=1, column=2)
             entry_b = tk.Entry(frame, width=5)
             entry_b.grid(row=1, column=3)
 
-            tk.Label(frame, text="c / k:").grid(row=1, column=4)
+            tk.Label(frame, text="c:").grid(row=1, column=4)
             entry_c = tk.Entry(frame, width=5)
             entry_c.grid(row=1, column=5)
 
@@ -108,14 +112,26 @@ class LinearProgrammingApp:
                 plt.plot(x, y, label=f'y >= {c_or_k}x')
                 plt.fill_between(x, y, y2=200, color='gray', alpha=0.2)
 
+            elif constraint_type == "x<=c":
+                plt.axvline(x=c_or_k, color='gray', linestyle='--', label=f'x <= {c_or_k}')
+                plt.fill_betweenx(np.linspace(0, 200, 400), x1=0, x2=c_or_k, color='gray', alpha=0.2)
+
+            elif constraint_type == "x>=c":
+                plt.axvline(x=c_or_k, color='gray', linestyle='--', label=f'x >= {c_or_k}')
+                plt.fill_betweenx(np.linspace(0, 200, 400), x1=c_or_k, x2=200, color='gray', alpha=0.2)
+
+            elif constraint_type == "y<=c":
+                plt.axhline(y=c_or_k, color='gray', linestyle='--', label=f'y <= {c_or_k}')
+                plt.fill_between(np.linspace(0, 200, 400), y1=0, y2=c_or_k, color='gray', alpha=0.2)
+
+            elif constraint_type == "y>=c":
+                plt.axhline(y=c_or_k, color='gray', linestyle='--', label=f'y >= {c_or_k}')
+                plt.fill_between(np.linspace(0, 200, 400), y1=c_or_k, y2=200, color='gray', alpha=0.2)
+
         plt.xlim((0, 200))
         plt.ylim((0, 200))
         plt.xlabel('x')
         plt.ylabel('y')
-
-        # Graficar la función objetivo
-        z = (self.a * x + self.b * 0) / self.b
-        plt.plot(x, z, 'r--', label=f'Función Objetivo: Z = {self.a}x + {self.b}y')
 
         plt.legend()
         plt.grid(True)
