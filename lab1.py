@@ -6,13 +6,17 @@ import numpy as np
 from scipy.spatial import ConvexHull
 from pulp import LpMaximize, LpMinimize, LpProblem, LpVariable
 
-
 # OBTENCION DE VALORES Y OPCIONES SELECCIONADOS POR EL USUARIO
-
 def resolver():
     seleccion = opcion.get()
-    x1_value = float(x1.get())
-    x2_value = float(x2.get())
+    
+    # Validación y obtención de valores de la función objetivo
+    try:
+        x1_value = float(x1.get())
+        x2_value = float(x2.get())
+    except ValueError:
+        messagebox.showerror("Error", "Valores inválidos en la función objetivo. Asegúrate de ingresar números.")
+        return
     
     # Restricciones iniciales (x1 >= 0 y x2 >= 0)
     restricciones = [(1, 0, "≥", 0), (0, 1, "≥", 0)]
@@ -25,7 +29,7 @@ def resolver():
             constante = float(res_constantes[i].get())
             restricciones.append((res_x1, res_x2, signo, constante))
         except ValueError:
-            messagebox.showerror("Error", f"Valores inválidos en la restricción {i+1}.")
+            messagebox.showerror("Error", f"Valores inválidos en la restricción {i+1}. Asegúrate de ingresar números.")
             return
 
     # SOLUCION DE PROBLEMA DE OPTIMIZACION LINEAL
