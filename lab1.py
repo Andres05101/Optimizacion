@@ -1,5 +1,6 @@
 # YEIMY VANESSA LOPEZ TERREROS
 # MICHAEL ANDRES RODRIGUEZ ESTRADA
+
 import tkinter as tk
 from tkinter import messagebox
 import matplotlib.pyplot as plt
@@ -8,11 +9,11 @@ import numpy as np
 from scipy.spatial import ConvexHull
 from pulp import LpMaximize, LpMinimize, LpProblem, LpVariable
 
-# OBTENCION DE VALORES Y OPCIONES SELECCIONADOS POR EL USUARIO 
+# Función para resolver el problema de programación lineal
 def resolver():
-    seleccion = opcion.get()
+    seleccion = opcion.get()  # Obtener la opción de maximizar o minimizar seleccionada por el usuario
     
-    # Validación y obtención de valores de la función objetivo
+    # Validar y obtener valores de la función objetivo
     try:
         x1_value = float(x1.get())
         x2_value = float(x2.get())
@@ -20,9 +21,10 @@ def resolver():
         messagebox.showerror("Error", "Valores inválidos en la función objetivo. Asegúrate de ingresar números.")
         return
     
-    # Restricciones iniciales (x1 >= 0 y x2 >= 0)
+    # Inicializar las restricciones con las condiciones de no negatividad
     restricciones = [(1, 0, "≥", 0), (0, 1, "≥", 0)]
     
+    # Obtener valores de las restricciones introducidas por el usuario
     for i in range(cantidad_restricciones):
         try:
             res_x1 = float(res_vars_x1[i].get())
@@ -34,14 +36,15 @@ def resolver():
             messagebox.showerror("Error", f"Valores inválidos en la restricción {i+1}. Asegúrate de ingresar números.")
             return
 
-    # SOLUCION DE PROBLEMA DE OPTIMIZACION LINEAL
+    # Crear y configurar el problema de optimización lineal
     prob = LpProblem(name="Problema", sense=LpMaximize if seleccion == "Maximizar" else LpMinimize)
 
-    x1_var = LpVariable(name="X1", lowBound=0)
-    x2_var = LpVariable(name="X2", lowBound=0)
+    x1_var = LpVariable(name="X1", lowBound=0)  # Variable X1 con límite inferior en 0
+    x2_var = LpVariable(name="X2", lowBound=0)  # Variable X2 con límite inferior en 0
 
-    prob += x1_value * x1_var + x2_value * x2_var
+    prob += x1_value * x1_var + x2_value * x2_var  # Agregar función objetivo al problema
 
+    # Agregar restricciones al problema de optimización
     for res in restricciones:
         if res[2] == "≤":
             prob += res[0] * x1_var + res[1] * x2_var <= res[3]
@@ -50,12 +53,14 @@ def resolver():
         elif res[2] == "=":
             prob += res[0] * x1_var + res[1] * x2_var == res[3]
 
-    prob.solve()
+    prob.solve()  # Resolver el problema
 
+    # Obtener los valores óptimos
     optimal_x1 = x1_var.value()
     optimal_x2 = x2_var.value()
     optimal_value = prob.objective.value()
 
+    # Preparar datos para la gráfica
     A = []
     b = []
 
@@ -75,6 +80,7 @@ def resolver():
 
     vertice_sol = []
 
+    # Encontrar los vértices de la región factible
     for i in range(len(A)):
         for j in range(i + 1, len(A)):
             A_sub = np.array([A[i], A[j]])
@@ -101,6 +107,7 @@ def resolver():
 
     vertice_values = [x1_value * v[0] + x2_value * v[1] for v in vertice_sol]
 
+    # Preparar el mensaje de resultados
     vertices_msg = "\n".join([f"Vértice {i+1}: X1 = {v[0]:.2f}, X2 = {v[1]:.2f}, Z = {vertice_values[i]:.2f}" for i, v in enumerate(vertice_sol)])
     mensaje_opt = f"{vertices_msg}\n\nLa optimización se alcanza en:\nX1 = {optimal_x1:.2f}\nX2 = {optimal_x2:.2f}\nValor óptimo = {optimal_value:.2f}"
 
@@ -111,7 +118,7 @@ def resolver():
     frame_resultado = tk.Frame(scrollable_frame, bg='#f8d7da')
     frame_resultado.grid(row=4, column=5, padx=10, pady=10, sticky="n")
 
-    # GRAFICA RESTRICCIONES DENTRO DE TKINTER
+    # Crear la gráfica de restricciones
     fig, ax = plt.subplots(figsize=(8, 6))
     ax.set_xlabel('X1')
     ax.set_ylabel('X2')
@@ -134,22 +141,24 @@ def resolver():
         # Dibujar la región factible y rellenarla de color gris
         ax.fill(region_factible[:, 0], region_factible[:, 1], color='grey', alpha=0.4, label='Región Factible')
 
+    # Marcar la solución óptima en la gráfica
     ax.plot(optimal_x1, optimal_x2, 'ro', label='Solución óptima')
     ax.text(optimal_x1, optimal_x2, f'({optimal_x1:.2f}, {optimal_x2:.2f})', fontsize=8)
 
-    # Ajuste de los límites de los ejes según el máximo de las intersecciones
+    # Ajustar límites de los ejes
     if vertice_sol:
         max_x1 = max([v[0] for v in vertice_sol])
         max_x2 = max([v[1] for v in vertice_sol])
-        ax.set_xlim(0, max_x1 + 20)  # Añadimos un margen
-        ax.set_ylim(0, max_x2 + 20)  # Añadimos un margen
+        ax.set_xlim(0, max_x1 + 20)  # Añadir un margen
+        ax.set_ylim(0, max_x2 + 20)  # Añadir un margen
     else:
-        ax.set_xlim(0, 400)  # Limites por defecto
-        ax.set_ylim(0, 400)  # Limites por defecto
+        ax.set_xlim(0, 400)  # Límites por defecto
+        ax.set_ylim(0, 400)  # Límites por defecto
 
     ax.grid(True)
     ax.legend()
 
+    # Mostrar la gráfica en Tkinter
     canvas = FigureCanvasTkAgg(fig, master=frame_grafica)
     canvas.draw()
     canvas.get_tk_widget().pack()
@@ -158,7 +167,7 @@ def resolver():
     resultado_label = tk.Label(frame_resultado, text=mensaje_opt, bg='#f8d7da', font=("Arial", 10), justify="left")
     resultado_label.pack()
 
-
+# Función para agregar campos para las restricciones
 def agregar_restricciones():
     global cantidad_restricciones
     cantidad_restricciones = int(resCan.get())
@@ -170,6 +179,7 @@ def agregar_restricciones():
     if 'restriccion_frame' in globals():
         restriccion_frame.destroy()
     
+    # Crear un frame para las restricciones
     restriccion_frame = tk.Frame(scrollable_frame, bg='#f8d7da', pady=10)
     restriccion_frame.grid(row=2, column=0, columnspan=7, padx=10, pady=10)
     
@@ -179,6 +189,7 @@ def agregar_restricciones():
     res_constantes = []
     opcionres = []
 
+    # Crear campos de entrada para cada restricción
     for i in range(cantidad_restricciones):
         tk.Label(restriccion_frame, text=f"Restricción {i+1}:", font=("Arial", 10, "bold"), bg='#f8d7da').grid(row=i*2, column=0, padx=10, pady=5)
         res_var_x1 = tk.Entry(restriccion_frame, width=5)
@@ -199,8 +210,7 @@ def agregar_restricciones():
         res_constante.grid(row=i*2, column=6, padx=2, pady=5)
         res_constantes.append(res_constante)
 
-
-# Configurar ventana principal
+# Configurar la ventana principal
 ventana = tk.Tk()
 ventana.geometry("950x600")
 ventana.title("Resolución de Problemas de Programación Lineal")
