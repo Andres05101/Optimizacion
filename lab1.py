@@ -1,3 +1,5 @@
+# YEIMY VANESSA LOPEZ TERREROS
+# MICHAEL ANDRES RODRIGUEZ ESTRADA
 import tkinter as tk
 from tkinter import messagebox
 import matplotlib.pyplot as plt
@@ -6,7 +8,7 @@ import numpy as np
 from scipy.spatial import ConvexHull
 from pulp import LpMaximize, LpMinimize, LpProblem, LpVariable
 
-# OBTENCION DE VALORES Y OPCIONES SELECCIONADOS POR EL USUARIO
+# OBTENCION DE VALORES Y OPCIONES SELECCIONADOS POR EL USUARIO 
 def resolver():
     seleccion = opcion.get()
     
