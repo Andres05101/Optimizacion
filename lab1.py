@@ -103,10 +103,10 @@ def resolver():
     mensaje_opt = f"{vertices_msg}\n\nLa optimización se alcanza en:\nX1 = {optimal_x1:.2f}\nX2 = {optimal_x2:.2f}\nValor óptimo = {optimal_value:.2f}"
 
     # Crear un frame para la gráfica y los resultados
-    frame_grafica = tk.Frame(ventana, bg='#f8d7da')
+    frame_grafica = tk.Frame(scrollable_frame, bg='#f8d7da')
     frame_grafica.grid(row=4, column=0, columnspan=5, pady=10)
 
-    frame_resultado = tk.Frame(ventana, bg='#f8d7da')
+    frame_resultado = tk.Frame(scrollable_frame, bg='#f8d7da')
     frame_resultado.grid(row=4, column=5, padx=10, pady=10, sticky="n")
 
     # GRAFICA RESTRICCIONES DENTRO DE TKINTER
@@ -167,7 +167,8 @@ def agregar_restricciones():
     
     if 'restriccion_frame' in globals():
         restriccion_frame.destroy()
-    restriccion_frame = tk.Frame(ventana, bg='#f8d7da', pady=10)
+    
+    restriccion_frame = tk.Frame(scrollable_frame, bg='#f8d7da', pady=10)
     restriccion_frame.grid(row=2, column=0, columnspan=7, padx=10, pady=10)
     
     global res_vars_x1, res_vars_x2, res_constantes, opcionres
@@ -197,35 +198,57 @@ def agregar_restricciones():
         res_constantes.append(res_constante)
 
 
+# Configurar ventana principal
 ventana = tk.Tk()
 ventana.geometry("950x600")
 ventana.title("Resolución de Problemas de Programación Lineal")
 ventana.configure(bg='#f8d7da')
 
+# Crear un canvas y un scrollbar para la ventana principal
+canvas = tk.Canvas(ventana, bg='#f8d7da')
+scrollbar = tk.Scrollbar(ventana, orient="vertical", command=canvas.yview)
+scrollable_frame = tk.Frame(canvas, bg='#f8d7da')
+
+# Colocar el canvas en la ventana principal
+canvas.grid(row=0, column=0, sticky="nsew")
+scrollbar.grid(row=0, column=1, sticky="ns")
+
+# Configurar el canvas
+canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+scrollable_frame.bind(
+    "<Configure>",
+    lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+)
+
+# Añadir widgets a la ventana scrollable_frame
 opcion = tk.StringVar(ventana)
 opcion.set("Maximizar")
-menu = tk.OptionMenu(ventana, opcion, "Maximizar", "Minimizar")
+menu = tk.OptionMenu(scrollable_frame, opcion, "Maximizar", "Minimizar")
 menu.config(bg='#f8d7da')
 menu.grid(row=0, column=0, padx=5, pady=5)
 
-x1 = tk.Entry(ventana, width=7)
+x1 = tk.Entry(scrollable_frame, width=7)
 x1.grid(row=0, column=1, padx=5, pady=5)
 x1.insert(0, " ")
-tk.Label(ventana, text="X1 +", bg='#f8d7da').grid(row=0, column=2, padx=5, pady=5)
+tk.Label(scrollable_frame, text="X1 +", bg='#f8d7da').grid(row=0, column=2, padx=5, pady=5)
 
-x2 = tk.Entry(ventana, width=7)
+x2 = tk.Entry(scrollable_frame, width=7)
 x2.grid(row=0, column=3, padx=5, pady=5)
 x2.insert(0, " ")
-tk.Label(ventana, text="X2", bg='#f8d7da').grid(row=0, column=4, padx=5, pady=5)
+tk.Label(scrollable_frame, text="X2", bg='#f8d7da').grid(row=0, column=4, padx=5, pady=5)
 
-tk.Label(ventana, text="Número de restricciones", font=("Arial", 10, "bold"), bg='#f8d7da').grid(row=1, column=0, padx=10, pady=10)
-resCan = tk.Entry(ventana, width=5)
+tk.Label(scrollable_frame, text="Número de restricciones", font=("Arial", 10, "bold"), bg='#f8d7da').grid(row=1, column=0, padx=10, pady=10)
+resCan = tk.Entry(scrollable_frame, width=5)
 resCan.grid(row=1, column=1, padx=5, pady=5)
 
-btn_restricciones = tk.Button(ventana, text="Agregar restricciones", command=agregar_restricciones, bg='#e1a4b1')
+btn_restricciones = tk.Button(scrollable_frame, text="Agregar restricciones", command=agregar_restricciones, bg='#e1a4b1')
 btn_restricciones.grid(row=1, column=2, padx=5, pady=5)
 
-btn_resolver = tk.Button(ventana, text="Resolver", command=resolver, bg='#f5c6cb')
+btn_resolver = tk.Button(scrollable_frame, text="Resolver", command=resolver, bg='#f5c6cb')
 btn_resolver.grid(row=1, column=3, padx=5, pady=5)
+
+# Configurar filas y columnas para que el canvas se expanda
+ventana.grid_rowconfigure(0, weight=1)
+ventana.grid_columnconfigure(0, weight=1)
 
 ventana.mainloop()
