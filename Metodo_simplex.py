@@ -5,6 +5,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
 from scipy.spatial import ConvexHull
 from pulp import LpMaximize, LpMinimize, LpProblem, LpVariable
+import tabulate
+from scipy.optimize import linprog
 
 class Metodo_Grafico:
     def __init__(self, funcion_objetivo, restricciones):
@@ -27,6 +29,60 @@ class Metodo_Grafico:
         # Resolver el problema con el método gráfico (buscar intersecciones de restricciones)
         pass  # Implementar la lógica aquí
 
+class Metodo_Simplex:
+    def __init__(self, funcion_objetivo, restricciones):
+        self.funcion_objetivo = funcion_objetivo  # (coef_x1, coef_x2)
+        self.restricciones = restricciones  # [(coef_x1, coef_x2, signo, constante), ...]
+
+    def resolver(self):
+        c = [-self.funcion_objetivo[0], -self.funcion_objetivo[1]]  # Coefficients for maximization problem (negate for linprog)
+
+        A_ub = []  # Coefficients for inequality constraints
+        b_ub = []  # Right-hand side values for inequality constraints
+
+        for res in self.restricciones:
+            coef_x1, coef_x2, signo, constante = res
+            if signo == "≤":
+                A_ub.append([coef_x1, coef_x2])
+                b_ub.append(constante)
+            elif signo == "≥":
+                A_ub.append([-coef_x1, -coef_x2])
+                b_ub.append(-constante)
+            elif signo == "=":
+                # Equality constraints are not supported by linprog directly
+                # They should be split into two inequalities
+                A_ub.append([coef_x1, coef_x2])
+                b_ub.append(constante)
+                A_ub.append([-coef_x1, -coef_x2])
+                b_ub.append(-constante)
+
+        # Solve the linear programming problem
+        result = linprog(c, A_ub=A_ub, b_ub=b_ub, method='highs')
+
+        # Extract solution
+        optimal_x1 = result.x[0]
+        optimal_x2 = result.x[1]
+        optimal_value = -result.fun
+
+        # Prepare the solution table
+        table = [
+            ["Variable", "Value"],
+            ["X1", f"{optimal_x1:.2f}"],
+            ["X2", f"{optimal_x2:.2f}"],
+            ["Objective Value", f"{optimal_value:.2f}"]
+        ]
+
+        # Show the result in a table within the GUI
+        self.mostrar_resultado(tabulate.tabulate(table, headers="firstrow", tablefmt="grid"))
+
+    def mostrar_resultado(self, tabla):
+        # Crear un frame para los resultados de la tabla
+        frame_resultado_simplex = tk.Frame(scrollable_frame, bg='#f8d7da')
+        frame_resultado_simplex.grid(row=5, column=0, columnspan=7, pady=10)
+
+        # Mostrar la tabla en un Label dentro del frame_resultado_simplex
+        resultado_label = tk.Label(frame_resultado_simplex, text=tabla, bg='#f8d7da', font=("Courier", 10), justify="left")
+        resultado_label.pack()
 
 
 # Función para resolver el problema de programación lineal
@@ -58,11 +114,15 @@ def resolver():
             return
         
     if seleccion_metodo == "Método Gráfico":
-        # Crear una instancia de la clase Metodo_Grafico
         metodo_grafico = Metodo_Grafico((x1_value, x2_value), restricciones)
-        metodo_grafico.graficar_restricciones()  # Graficar las restricciones
-        metodo_grafico.resolver()  # Resolver el problema
-        # Crear y configurar el problema de optimización lineal
+        metodo_grafico.graficar_restricciones()
+        metodo_grafico.resolver()
+
+    elif seleccion_metodo == "Método Simplex":
+        metodo_simplex = Metodo_Simplex((x1_value, x2_value), restricciones)
+        metodo_simplex.resolver()
+
+    # Crear y configurar el problema de optimización lineal
     prob = LpProblem(name="Problema", sense=LpMaximize if seleccion == "Maximizar" else LpMinimize)
 
     x1_var = LpVariable(name="X1", lowBound=0)  # Variable X1 con límite inferior en 0
@@ -212,7 +272,7 @@ def resolver():
     actualizar_interfaz(seleccion_metodo, x1_value, x2_value, restricciones)
 
 def actualizar_interfaz(seleccion_metodo, x1_value, x2_value, restricciones):
-    # # Actualizar el método seleccionado en la interfaz
+    # Actualizar el método seleccionado en la interfaz
     # metodo_label.config(text=f"Método seleccionado: {seleccion_metodo}")
 
     # Actualizar la función Z en la interfaz
@@ -334,7 +394,6 @@ btn_restricciones.grid(row=1, column=2, padx=5, pady=5)
 
 btn_resolver = tk.Button(scrollable_frame, text="Resolver", command=resolver, bg='#f5c6cb')
 btn_resolver.grid(row=1, column=3, padx=5, pady=5)
-
 
 
 restriccion_frame = tk.Frame(scrollable_frame, bg='#f8d7da')
