@@ -84,7 +84,6 @@ class Metodo_Simplex:
         resultado_label = tk.Label(frame_resultado_simplex, text=tabla, bg='#f8d7da', font=("Courier", 10), justify="left")
         resultado_label.pack()
 
-
 # Función para resolver el problema de programación lineal
 def resolver():
     seleccion_metodo = metodo_opcion.get()  # Obtener el método de resolución seleccionado
@@ -394,7 +393,6 @@ btn_restricciones.grid(row=1, column=2, padx=5, pady=5)
 
 btn_resolver = tk.Button(scrollable_frame, text="Resolver", command=resolver, bg='#f5c6cb')
 btn_resolver.grid(row=1, column=3, padx=5, pady=5)
-
 
 restriccion_frame = tk.Frame(scrollable_frame, bg='#f8d7da')
 restriccion_frame.grid(row=2, column=2, padx=5, pady=5)
