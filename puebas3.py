@@ -121,7 +121,7 @@ class Metodo_Grafico:
         ]
 
     def graficar_restricciones(self):
-        # Limpiar frame_derecho antes de mostrar nueva gráfica y resultados
+        # Limpiar el frame derecho antes de graficar
         for widget in self.frame_derecho.winfo_children():
             widget.destroy()
 
@@ -129,60 +129,49 @@ class Metodo_Grafico:
         fig, ax = plt.subplots(figsize=(6, 6))
         ax.set_xlabel('X1')
         ax.set_ylabel('X2')
-        ax.set_title('Gráfico de restricciones y región factible')
+        ax.set_title('Gráfico de restricciones y área objetiva')
 
-        x1_vals = np.linspace(0, 25, 100)
+        x1_vals = np.linspace(0, 20, 400)
 
-        # Inicializamos listas para calcular las intersecciones
+        # Inicializar lista para las intersecciones
         intersecciones = []
-        for i, restriccion in enumerate(self.restricciones):
-            coef_x1, coef_x2, signo, constante = restriccion
 
-            # Graficar restricciones
+        # Graficar las restricciones en el primer cuadrante
+        for restriccion in self.restricciones:
+            coef_x1, coef_x2, signo, constante = restriccion
             if coef_x2 != 0:
                 x2_vals = (constante - coef_x1 * x1_vals) / coef_x2
-                ax.plot(x1_vals, x2_vals, label=f'Restricción {i+1}: {coef_x1}X1 + {coef_x2}X2 {signo} {constante}')
+                ax.plot(x1_vals, np.clip(x2_vals, 0, None), label=f'{coef_x1}X1 + {coef_x2}X2 {signo} {constante}')
             else:
                 x1_vals_restr = np.full_like(x1_vals, constante / coef_x1)
-                ax.plot(x1_vals_restr, x1_vals, label=f'Restricción {i+1}: {coef_x1}X1 {signo} {constante}')
+                ax.plot(x1_vals_restr, x1_vals, label=f'{coef_x1}X1 {signo} {constante}')
 
-            # Cálculo de las intersecciones con los ejes
-            if coef_x1 != 0:
-                interseccion_x1 = constante / coef_x1
-                if interseccion_x1 >= 0:
-                    intersecciones.append([interseccion_x1, 0])
-            if coef_x2 != 0:
-                interseccion_x2 = constante / coef_x2
-                if interseccion_x2 >= 0:
-                    intersecciones.append([0, interseccion_x2])
+        # Calcular las intersecciones factibles
+        vertice_sol = self.calcular_intersecciones()
 
-        # Encontrar los vértices factibles
-        vertice_sol = self.encontrar_vertices_factibles()
-
-        # Rellenar la región factible
+        # Rellenar la región factible utilizando las intersecciones correctas
         if len(vertice_sol) > 2:
-            hull = ConvexHull(np.array(vertice_sol))
-            region_factible = np.array(vertice_sol)[hull.vertices]
-            ax.fill(region_factible[:, 0], region_factible[:, 1], color='grey', alpha=0.5, label='Región factible')
+            region_factible = np.array(vertice_sol)
+            ax.fill(region_factible[:, 0], region_factible[:, 1], color='lightblue', alpha=0.5, label='Área objetiva')
 
         # Resolver el problema y marcar la solución óptima
         optimal_x1, optimal_x2, valor_optimo = self.resolver()
         ax.plot(optimal_x1, optimal_x2, 'ro', label=f'Óptimo (X1={optimal_x1:.2f}, X2={optimal_x2:.2f})')
         ax.text(optimal_x1, optimal_x2, f'({optimal_x1:.2f}, {optimal_x2:.2f})', fontsize=8, verticalalignment='bottom')
 
+        # Ajustar los límites para mostrar solo el primer cuadrante
+        ax.set_xlim(0, max(optimal_x1 + 2, 10))
+        ax.set_ylim(0, max(optimal_x2 + 2, 10))
+
         ax.legend()
         ax.grid(True)
-
-        # Ajustar límites para mostrar solo el primer cuadrante
-        ax.set_xlim(0, 25)  # Limitar X1 a valores no negativos
-        ax.set_ylim(0, 25)  # Limitar X2 a valores no negativos
 
         # Mostrar la gráfica en Tkinter
         canvas = FigureCanvasTkAgg(fig, master=self.frame_derecho)
         canvas.draw()
         canvas.get_tk_widget().pack(side=tk.LEFT, padx=10, pady=10)
 
-        # Mostrar las intersecciones y la solución óptima en texto a la derecha de la gráfica
+        # Mostrar intersecciones y solución óptima en texto
         resultado_texto = tk.Text(self.frame_derecho, height=10, width=40)
         resultado_texto.pack(side=tk.RIGHT, padx=10, pady=10)
         resultado_texto.insert(tk.END, "Intersecciones:\n")
@@ -190,7 +179,10 @@ class Metodo_Grafico:
             resultado_texto.insert(tk.END, f"X1 = {interseccion[0]:.2f}, X2 = {interseccion[1]:.2f}\n")
         resultado_texto.insert(tk.END, f"\nSolución óptima:\nX1 = {optimal_x1:.2f}, X2 = {optimal_x2:.2f}, Valor óptimo Z = {valor_optimo:.2f}")
 
-    def encontrar_vertices_factibles(self):
+    def calcular_intersecciones(self):
+        """
+        Calcular todas las intersecciones entre las restricciones y verificar que sean factibles
+        """
         A = []
         b = []
         for res in self.restricciones:
@@ -205,6 +197,7 @@ class Metodo_Grafico:
         b = np.array(b)
 
         vertices = []
+        # Buscar todas las combinaciones de pares de restricciones para encontrar sus intersecciones
         for i in range(len(A)):
             for j in range(i + 1, len(A)):
                 A_sub = np.array([A[i], A[j]])
@@ -212,8 +205,10 @@ class Metodo_Grafico:
                 if np.linalg.matrix_rank(A_sub) == 2:
                     try:
                         vertice = np.linalg.solve(A_sub, b_sub)
-                        if all(vertice >= 0):
-                            vertices.append(vertice)
+                        if all(vertice >= 0):  # Solo considerar puntos en el primer cuadrante
+                            # Verificar si el vértice cumple todas las restricciones
+                            if all(np.dot(A, vertice) <= b):  # Verifica que cumple todas las restricciones
+                                vertices.append(vertice)
                     except np.linalg.LinAlgError:
                         continue
 
@@ -238,11 +233,12 @@ class Metodo_Grafico:
         # Resolver el problema
         prob.solve()
 
-        # Devolver solución óptima
+        # Devolver la solución óptima
         optimal_x1 = x1_var.value()
         optimal_x2 = x2_var.value()
         valor_optimo = prob.objective.value()
 
+        return optimal_x1, optimal_x2, valor_optimo
         return optimal_x1, optimal_x2, valor_optimo
 
 
