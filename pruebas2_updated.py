@@ -64,15 +64,7 @@ def confirmar_variables():
                     tk.Label(frame_izquierdo, bg='#f8d7da', text=f"X{j + 1} +").grid(row=i + 3, column=j * 2 + 2, padx=5, pady=5)
                 else:
                     tk.Label(frame_izquierdo, bg='#f8d7da', text=f"X{j + 1}").grid(row=i + 3, column=j * 2 + 2, padx=5, pady=5)
-
-            # Menú desplegable para seleccionar ≤ o ≥
-            signo_var = tk.StringVar()
-            signo_var.set("≤")  # Valor por defecto
-            opciones_signo = ["≤", "≥"]
-            menu_signo = tk.OptionMenu(frame_izquierdo, signo_var, *opciones_signo)
-            menu_signo.grid(row=i + 3, column=num_variables * 2 + 1, padx=5, pady=5)
-            restricciones[i].append(signo_var)  # Guardar el valor seleccionado en restricciones
-
+            tk.Label(frame_izquierdo, bg='#f8d7da', text="≤").grid(row=i + 3, column=num_variables * 2 + 1, padx=5, pady=5)
             constante_entry = tk.Entry(frame_izquierdo, width=5)
             constante_entry.grid(row=i + 3, column=num_variables * 2 + 2, padx=5, pady=5)
             restricciones_constantes.append(constante_entry)
@@ -103,93 +95,81 @@ def obtener_valores():
     funcion_objetivo = [float(entry.get()) for entry in vars_objetivo]
     restricciones_valores = []
     for i in range(cantidad_restricciones):
-        restriccion = [float(entry.get()) for entry in restricciones[i][:-1]]  # Excluye el signo
-        signo = restricciones[i][-1].get()  # Obtiene el valor del menú desplegable
+        restriccion = [float(entry.get()) for entry in restricciones[i]]
         constante = float(restricciones_constantes[i].get())
-        restricciones_valores.append(restriccion + [signo, constante])  # Incluye el signo y la constante
+        restricciones_valores.append(restriccion + ['≤', constante])
     return funcion_objetivo, restricciones_valores
 
 class Metodo_Grafico:
-    def __init__(self, funcion_objetivo, restricciones, frame_derecho):
+    def __init__(self, funcion_objetivo, restricciones, scrollable_frame):  
         self.funcion_objetivo = funcion_objetivo
         self.restricciones = restricciones
-        self.frame_derecho = frame_derecho
+        self.scrollable_frame = scrollable_frame
 
-        # Añadir restricciones de no negatividad (X1 ≥ 0 y X2 ≥ 0)
+        # Añadir restricciones de no negatividad
         self.restricciones += [
-            [1, 0, "≥", 0],  # X1 ≥ 0
-            [0, 1, "≥", 0]   # X2 ≥ 0
+            [1, 0, "≥", 0],  # X1 >= 0
+            [0, 1, "≥", 0]   # X2 >= 0
         ]
 
     def graficar_restricciones(self):
-        # Limpiar frame_derecho antes de mostrar nueva gráfica y resultados
-        for widget in self.frame_derecho.winfo_children():
-            widget.destroy()
-
-        # Crear figura para la gráfica
-        fig, ax = plt.subplots(figsize=(6, 6))
+        fig, ax = plt.subplots(figsize=(8, 6))
         ax.set_xlabel('X1')
         ax.set_ylabel('X2')
-        ax.set_title('Gráfico de restricciones y región factible')
+        ax.set_title('Inecuaciones y región factible de soluciones')
 
-        x1_vals = np.linspace(0, 100, 400)
+        x1_vals = np.linspace(0, 10, 400)
 
-        # Inicializamos listas para calcular las intersecciones
-        intersecciones = []
         for i, restriccion in enumerate(self.restricciones):
             coef_x1, coef_x2, signo, constante = restriccion
-
-            # Graficar restricciones
             if coef_x2 != 0:
-                x2_vals = (constante - coef_x1 * x1_vals) / coef_x2
-                ax.plot(x1_vals, x2_vals, label=f'Restricción {i+1}: {coef_x1}X1 + {coef_x2}X2 {signo} {constante}')
+                x2_vals_restr = (constante - coef_x1 * x1_vals) / coef_x2
+                ax.plot(x1_vals, x2_vals_restr, label=f'Restricción {i+1}: {coef_x1}X1 + {coef_x2}X2 {signo} {constante}')
             else:
                 x1_vals_restr = np.full_like(x1_vals, constante / coef_x1)
                 ax.plot(x1_vals_restr, x1_vals, label=f'Restricción {i+1}: {coef_x1}X1 {signo} {constante}')
 
-            # Cálculo de las intersecciones con los ejes
-            if coef_x1 != 0:
-                interseccion_x1 = constante / coef_x1
-                if interseccion_x1 >= 0:
-                    intersecciones.append([interseccion_x1, 0])
-            if coef_x2 != 0:
-                interseccion_x2 = constante / coef_x2
-                if interseccion_x2 >= 0:
-                    intersecciones.append([0, interseccion_x2])
-
-        # Encontrar los vértices factibles
-        vertice_sol = self.encontrar_vertices_factibles()
-
-        # Rellenar la región factible
-        if len(vertice_sol) > 2:
-            hull = ConvexHull(np.array(vertice_sol))
-            region_factible = np.array(vertice_sol)[hull.vertices]
-            ax.fill(region_factible[:, 0], region_factible[:, 1], color='grey', alpha=0.5, label='Región factible')
-
-        # Resolver el problema y marcar la solución óptima
-        optimal_x1, optimal_x2, valor_optimo = self.resolver()
-        ax.plot(optimal_x1, optimal_x2, 'ro', label=f'Óptimo (X1={optimal_x1:.2f}, X2={optimal_x2:.2f})')
-        ax.text(optimal_x1, optimal_x2, f'({optimal_x1:.2f}, {optimal_x2:.2f})', fontsize=8, verticalalignment='bottom')
-
         ax.legend()
         ax.grid(True)
 
-        # Mostrar la gráfica en Tkinter
-        canvas = FigureCanvasTkAgg(fig, master=self.frame_derecho)
+        # Crear el frame para la gráfica
+        frame_grafica = tk.Frame(self.scrollable_frame, bg='#f8d7da')
+        frame_grafica.grid(row=4, column=0, columnspan=5, pady=10)
+
+        canvas = FigureCanvasTkAgg(fig, master=frame_grafica)
         canvas.draw()
-        canvas.get_tk_widget().pack(side=tk.LEFT, padx=10, pady=10)
+        canvas.get_tk_widget().pack()
 
-        # Mostrar las intersecciones y la solución óptima en texto a la derecha de la gráfica
-        resultado_texto = tk.Text(self.frame_derecho, height=10, width=40)
-        resultado_texto.pack(side=tk.RIGHT, padx=10, pady=10)
-        resultado_texto.insert(tk.END, "Intersecciones:\n")
-        for interseccion in vertice_sol:
-            resultado_texto.insert(tk.END, f"X1 = {interseccion[0]:.2f}, X2 = {interseccion[1]:.2f}\n")
-        resultado_texto.insert(tk.END, f"\nSolución óptima:\nX1 = {optimal_x1:.2f}, X2 = {optimal_x2:.2f}, Valor óptimo Z = {valor_optimo:.2f}")
+    def resolver(self, seleccion, x1_value, x2_value):
+        prob = LpProblem(name="Problema", sense=LpMaximize if seleccion == "Maximizar" else LpMinimize)
 
-    def encontrar_vertices_factibles(self):
+        x1_var = LpVariable(name="X1", lowBound=0)
+        x2_var = LpVariable(name="X2", lowBound=0)
+
+        # Función objetivo
+        prob += x1_value * x1_var + x2_value * x2_var
+
+        # Añadir restricciones
+        for res in self.restricciones:
+            if res[2] == "≤":
+                prob += res[0] * x1_var + res[1] * x2_var <= res[3]
+            elif res[2] == "≥":
+                prob += res[0] * x1_var + res[1] * x2_var >= res[3]
+            elif res[2] == "=":
+                prob += res[0] * x1_var + res[1] * x2_var == res[3]
+
+        # Resolver el problema
+        prob.solve()
+
+        # Obtener resultados
+        optimal_x1 = x1_var.value() or 0
+        optimal_x2 = x2_var.value() or 0
+        optimal_value = prob.objective.value() or 0
+
+        # Encontrar los vértices de la región factible
         A = []
         b = []
+
         for res in self.restricciones:
             if res[2] == "≤":
                 A.append([res[0], res[1]])
@@ -197,11 +177,15 @@ class Metodo_Grafico:
             elif res[2] == "≥":
                 A.append([-res[0], -res[1]])
                 b.append(-res[3])
+            elif res[2] == "=":
+                A.append([res[0], res[1]])
+                b.append(res[3])
 
         A = np.array(A)
         b = np.array(b)
 
-        vertices = []
+        vertice_sol = []
+
         for i in range(len(A)):
             for j in range(i + 1, len(A)):
                 A_sub = np.array([A[i], A[j]])
@@ -210,37 +194,76 @@ class Metodo_Grafico:
                     try:
                         vertice = np.linalg.solve(A_sub, b_sub)
                         if all(vertice >= 0):
-                            vertices.append(vertice)
+                            valid = True
+                            for k, res in enumerate(self.restricciones):
+                                if res[2] == "≤" and not (res[0] * vertice[0] + res[1] * vertice[1] <= res[3]):
+                                    valid = False
+                                    break
+                                elif res[2] == "≥" and not (res[0] * vertice[0] + res[1] * vertice[1] >= res[3]):
+                                    valid = False
+                                    break
+                                elif res[2] == "=" and not np.isclose(res[0] * vertice[0] + res[1] * vertice[1], res[3]):
+                                    valid = False
+                                    break
+                            if valid:
+                                vertice_sol.append(vertice)
                     except np.linalg.LinAlgError:
                         continue
 
-        return vertices
+        # Cálculo del valor de los vértices
+        vertice_values = [x1_value * v[0] + x2_value * v[1] for v in vertice_sol]
 
-    def resolver(self):
-        # Definir problema de optimización
-        prob = LpProblem(name="Problema", sense=LpMaximize)
-        x1_var = LpVariable(name="X1", lowBound=0)
-        x2_var = LpVariable(name="X2", lowBound=0)
+        # Preparar mensaje de resultados
+        vertices_msg = "\n".join([f"Vértice {i+1}: X1 = {v[0]:.2f}, X2 = {v[1]:.2f}, Z = {vertice_values[i]:.2f}" for i, v in enumerate(vertice_sol)])
+        mensaje_opt = f"{vertices_msg}\n\nLa optimización se alcanza en:\nX1 = {optimal_x1:.2f}\nX2 = {optimal_x2:.2f}\nValor óptimo = {optimal_value:.2f}"
 
-        # Función objetivo
-        prob += self.funcion_objetivo[0] * x1_var + self.funcion_objetivo[1] * x2_var
+        # Crear un frame para la gráfica
+        frame_grafica = tk.Frame(self.scrollable_frame, bg='#f8d7da')
+        frame_grafica.grid(row=4, column=0, columnspan=5, pady=10)
 
-        # Añadir restricciones
-        for res in self.restricciones:
-            if res[2] == "≤":
-                prob += res[0] * x1_var + res[1] * x2_var <= res[3]
-            elif res[2] == "≥":
-                prob += res[0] * x1_var + res[1] * x2_var >= res[3]
+        frame_resultado = tk.Frame(self.scrollable_frame, bg='#f8d7da')
+        frame_resultado.grid(row=4, column=5, padx=10, pady=10, sticky="n")
 
-        # Resolver el problema
-        prob.solve()
+        # Crear la gráfica de restricciones
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.set_xlabel('X1')
+        ax.set_ylabel('X2')
+        ax.set_title('Inecuaciones y región factible de soluciones')
 
-        # Devolver solución óptima
-        optimal_x1 = x1_var.value()
-        optimal_x2 = x2_var.value()
-        valor_optimo = prob.objective.value()
+        x1_vals = np.linspace(0, 10, 250)
+        for i, res in enumerate(self.restricciones):
+            if res[1] != 0:
+                x2_vals_restr = (res[3] - res[0] * x1_vals) / res[1]
+                ax.plot(x1_vals, x2_vals_restr, label=f'Restricción {i+1}: {res[0]}X1 + {res[1]}X2 {res[2]} {res[3]}')
+            else:
+                x1_vals_restr = np.full_like(x1_vals, res[3] / res[0])
+                ax.plot(x1_vals_restr, x1_vals, label=f'Restricción {i+1}: {res[0]}X1 {res[2]} {res[3]}')
 
-        return optimal_x1, optimal_x2, valor_optimo
+        # Rellenar la región factible
+        if len(vertice_sol) > 2:
+            hull = ConvexHull(np.array(vertice_sol))
+            region_factible = np.array(vertice_sol)[hull.vertices]
+            ax.fill(region_factible[:, 0], region_factible[:, 1], color='grey', alpha=0.4, label='Región Factible')
+
+        # Marcar la solución óptima en la gráfica
+        ax.plot(optimal_x1, optimal_x2, 'ro', label='Solución óptima')
+        ax.text(optimal_x1, optimal_x2, f'({optimal_x1:.2f}, {optimal_x2:.2f})', fontsize=8, verticalalignment='bottom')
+
+        # Ajustar límites de los ejes
+        ax.set_xlim(0, max(10, optimal_x1 + 2))  # Límites dinámicos
+        ax.set_ylim(0, max(10, optimal_x2 + 2))  # Límites dinámicos
+
+        ax.grid(True)
+        ax.legend()
+
+        # Mostrar la gráfica en Tkinter
+        canvas = FigureCanvasTkAgg(fig, master=frame_grafica)
+        canvas.draw()
+        canvas.get_tk_widget().pack()
+
+        # Mostrar el resultado en un Label dentro del frame_resultado
+        resultado_label = tk.Label(frame_resultado, text=mensaje_opt, bg='#f8d7da', font=("Arial", 10), justify="left")
+        resultado_label.pack()
 
 class Metodo_Simplex:
 
@@ -278,18 +301,18 @@ class Metodo_Simplex:
         b = []
         for i in range(self.cantidad_restricciones):
             restriccion = []
-            for entry in self.restricciones[i][:-1]:  # Excluye el último valor (el signo de la desigualdad)
+            for entry in self.restricciones[i]:
                 valor = entry.get()
                 if '/' in valor:  # Si hay una barra de fracción en la entrada
                     valor = float(Fraction(valor))  # Convertir a fracción
                 else:
                     valor = float(valor)  # Convertir a decimal
                 restriccion.append(valor)
-            constante = self.restricciones_constantes[i].get()  # Constante al final de la restricción
-            if '/' in constante:
-                constante = float(Fraction(constante))  # Convertir fracción a decimal
+            constante = self.restricciones_constantes[i].get()
+            if '/' in constante:  # Si hay una barra de fracción en la entrada
+                constante = float(Fraction(constante))  # Convertir a fracción
             else:
-                constante = float(constante)
+                constante = float(constante)  # Convertir a decimal
             A.append(restriccion)
             b.append(constante)
         return A, b
@@ -418,6 +441,8 @@ class Metodo_Simplex:
 
             pasos.append(table.copy())
 
+# Main code for the GUI and Tkinter interface
+# Similar to how it was in pruebas2.py
 ventana = tk.Tk()
 ventana.geometry("950x600")
 ventana.title("Resolución de Problemas de Programación Lineal")
@@ -435,6 +460,7 @@ frame_derecho.pack(side=tk.RIGHT, padx=10, pady=10)
 canvas = tk.Canvas(ventana, bg='#f8d7da')
 scrollbar = tk.Scrollbar(ventana, orient="vertical", command=canvas.yview)
 scrollable_frame = tk.Frame(canvas, bg='#f8d7da')
+
 
 # Configurar el canvas
 canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
