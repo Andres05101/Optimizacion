@@ -13,11 +13,21 @@ restricciones_constantes = []
 metodo_seleccionado = None
 tipo_seleccionado = None
 
+def convertir_a_numero(valor):
+    try:
+        return float(valor)  # Intenta convertir a decimal
+    except ValueError:
+        try:
+            return float(Fraction(valor))  # Intenta convertir a fracción
+        except ValueError:
+            messagebox.showerror("Error", f"La entrada '{valor}' no es un número válido.")
+            raise  # Re-lanza la excepción para que sea manejada en otro lugar
+
 def confirmar_variables():
     global num_variables, cantidad_restricciones
     try:
-        num_variables = int(numVar.get())
-        cantidad_restricciones = int(resCan.get())
+        num_variables = int(numVar.get())  # Número de variables debe seguir siendo un entero
+        cantidad_restricciones = int(resCan.get())  # La cantidad de restricciones también debe ser un entero
         
         if num_variables < 2:
             messagebox.showerror("Error", "El número de variables no puede ser menor a 2.")
@@ -79,8 +89,7 @@ def confirmar_variables():
         tk.Button(frame_izquierdo, bg='#f8d7da', text="Resolver", command=resolver).grid(row=cantidad_restricciones + 3, column=0, pady=10, columnspan=2)
     
     except ValueError:
-        messagebox.showerror("Error", "Por favor, ingrese un número válido de variables y restricciones.")
-
+        messagebox.showerror("Error", "Por favor, ingrese valores válidos.")
 def resolver():
     funcion_objetivo, restricciones_valores = obtener_valores()
 
