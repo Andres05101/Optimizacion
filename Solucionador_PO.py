@@ -6,8 +6,6 @@ import numpy as np
 from scipy.spatial import ConvexHull
 from pulp import LpMaximize, LpMinimize, LpProblem, LpVariable
 from fractions import Fraction
-from scipy.optimize import linprog
-import tabulate
 
 vars_objetivo = []
 restricciones = []
@@ -89,7 +87,7 @@ def resolver():
     if tipo_seleccionado.get() == "Método Gráfico":
         metodo_grafico = Metodo_Grafico(funcion_objetivo, restricciones_valores, frame_derecho)
         metodo_grafico.graficar_restricciones()
-        metodo_grafico.resolver(tipo_seleccionado.get(), funcion_objetivo[0], funcion_objetivo[1])
+        metodo_grafico.resolver()
 
     elif tipo_seleccionado.get() == "Método Simplex":
         metodo_simplex = Metodo_Simplex(cantidad_restricciones, num_variables, vars_objetivo, restricciones, restricciones_constantes, frame_derecho)
@@ -132,19 +130,21 @@ class Metodo_Grafico:
         ax.set_ylabel('X2')
         ax.set_title('Gráfico de restricciones y región factible')
 
-        x1_vals = np.linspace(0, 100, 400)
+        x1_vals = np.linspace(0, 25, 400)  # Asegurar que x1_vals solo sea positivo
 
         # Inicializamos listas para calcular las intersecciones
         intersecciones = []
         for i, restriccion in enumerate(self.restricciones):
             coef_x1, coef_x2, signo, constante = restriccion
 
-            # Graficar restricciones
+            # Graficar restricciones solo en el primer cuadrante
             if coef_x2 != 0:
                 x2_vals = (constante - coef_x1 * x1_vals) / coef_x2
+                x2_vals = np.maximum(x2_vals, 0)  # Limitar X2 a valores positivos
                 ax.plot(x1_vals, x2_vals, label=f'Restricción {i+1}: {coef_x1}X1 + {coef_x2}X2 {signo} {constante}')
             else:
                 x1_vals_restr = np.full_like(x1_vals, constante / coef_x1)
+                x1_vals_restr = np.maximum(x1_vals_restr, 0)  # Limitar X1 a valores positivos
                 ax.plot(x1_vals_restr, x1_vals, label=f'Restricción {i+1}: {coef_x1}X1 {signo} {constante}')
 
             # Cálculo de las intersecciones con los ejes
@@ -162,9 +162,9 @@ class Metodo_Grafico:
 
         # Rellenar la región factible
         if len(vertice_sol) > 2:
-            hull = ConvexHull(np.array(vertice_sol))
+            hull = ConvexHull(np.array(vertice_sol))  # Ordenar los vértices para el área convexa
             region_factible = np.array(vertice_sol)[hull.vertices]
-            ax.fill(region_factible[:, 0], region_factible[:, 1], color='grey', alpha=0.5, label='Región factible')
+            ax.fill(region_factible[:, 0], region_factible[:, 1], color='lightblue', alpha=0.5, label='Región factible')
 
         # Resolver el problema y marcar la solución óptima
         optimal_x1, optimal_x2, valor_optimo = self.resolver()
@@ -209,8 +209,22 @@ class Metodo_Grafico:
                 if np.linalg.matrix_rank(A_sub) == 2:
                     try:
                         vertice = np.linalg.solve(A_sub, b_sub)
-                        if all(vertice >= 0):
-                            vertices.append(vertice)
+                        if all(vertice >= 0):  # Solo considerar puntos en el primer cuadrante
+                            # Verificar si el vértice cumple con las restricciones
+                            factible = True
+                            for k, res in enumerate(self.restricciones):
+                                if res[2] == "≤" and not (res[0] * vertice[0] + res[1] * vertice[1] <= res[3]):
+                                    factible = False
+                                    break
+                                elif res[2] == "≥" and not (res[0] * vertice[0] + res[1] * vertice[1] >= res[3]):
+                                    factible = False
+                                    break
+                                elif res[2] == "=" and not np.isclose(res[0] * vertice[0] + res[1] * vertice[1], res[3]):
+                                    factible = False
+                                    break
+
+                            if factible:
+                                vertices.append(vertice)
                     except np.linalg.LinAlgError:
                         continue
 

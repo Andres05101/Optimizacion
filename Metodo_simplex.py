@@ -8,6 +8,7 @@ def confirmar_variables():
     num_variables = int(numVar.get())
     cantidad_restricciones = int(resCan.get())
 
+    
     # Limpiar el frame de entradas
     for widget in frame_izquierdo.winfo_children():
         widget.destroy()
@@ -108,6 +109,7 @@ def resolver_simplex():
     else:
         messagebox.showinfo("Optimización", "No se encontró una solución óptima.")
 
+
 def mostrar_solucion(table):
     solucion = [table[i, -1] for i in range(1, len(table))]
     valor_optimo = table[0, -1]  # Valor óptimo de Z
@@ -123,33 +125,51 @@ def mostrar_solucion(table):
     # Agrega el mensaje debajo de las tablas
     label_solucion = tk.Label(frame_derecho, text=mensaje, justify="left", font=("Helvetica", 10))
     label_solucion.grid(row=num_filas_ocupadas + 1, column=0, columnspan=10, padx=10, pady=10)
+    
 
 def mostrar_tabla(table, paso_numero):
+    
+    global variables_basicas, variables_holgura  # Para que estas listas puedan ser modificadas entre iteraciones
+        
+    # Inicializa las variables básicas (X1, X2, ...) y las variables de holgura (S1, S2, ...)
+    if paso_numero == 1:  # Solo inicializamos las variables en la primera iteración
+        variables_basicas = [f"X{i+1}" for i in range(num_variables)] + [f"S{i+1}" for i in range(cantidad_restricciones)]
+        variables_holgura = [f"S{i+1}" for i in range(cantidad_restricciones)]
 
     row_start = (paso_numero - 1) * (len(table) + 4)  # Offset para la posición vertical de la tabla
+    
+    # Verificar si la fila Z tiene valores negativos
+    hay_valores_negativos_en_z = np.any(table[0, :-1] < 0)
 
     # Título para la tabla de la iteración
     tk.Label(frame_derecho, bg='#f8d7da', text=f"{paso_numero}er tablero Simplex", font=("Helvetica", 12, "bold")).grid(row=row_start, column=0, columnspan=len(table[0]) + 1, pady=10)
 
     # Etiquetas de las columnas
-    headers = [""] + [f"X{i + 1}" for i in range(num_variables)] + [f"S{i + 1}" for i in range(cantidad_restricciones)] + ["CR"]
+    headers = [""] + variables_basicas + ["CR"]
     for j, label in enumerate(headers):
-        tk.Label(frame_derecho, text=label, borderwidth=1, relief="solid", width=10).grid(row=row_start + 1, column=j)
+        if hay_valores_negativos_en_z and j - 1 == np.argmin(table[0, :-1]):  # Si j - 1 (ajuste por el índice de las etiquetas) es la columna pivote
+            tk.Label(frame_derecho, text=label, borderwidth=1, relief="solid", width=10, bg="yellow").grid(row=row_start + 1, column=j)
+        else:
+            tk.Label(frame_derecho, text=label, borderwidth=1, relief="solid", width=10).grid(row=row_start + 1, column=j)
 
-    # Identificar la columna pivote (mínimo valor negativo en la fila Z)
-    col_pivote = np.argmin(table[0, :-1])
+    if hay_valores_negativos_en_z:
+        # Identificar la columna pivote (mínimo valor negativo en la fila Z)
+        col_pivote = np.argmin(table[0, :-1])
 
-    # Calcular los ratios de CR/columna pivote (ignorando divisiones por cero o valores negativos)
-    ratios = np.where(table[1:, col_pivote] > 0, table[1:, -1] / table[1:, col_pivote], np.inf)
-    row_pivote = np.argmin(ratios) + 1  # +1 porque la primera fila es la fila Z
+        # Calcular los ratios de CR/columna pivote (ignorando divisiones por cero o valores negativos)
+        ratios = np.where(table[1:, col_pivote] > 0, table[1:, -1] / table[1:, col_pivote], np.inf)
+        row_pivote = np.argmin(ratios) + 1  # +1 porque la primera fila es la fila Z
+    else:
+        col_pivote = None
+        row_pivote = None
 
     # Etiquetas de las filas y datos de la tabla
     for i in range(len(table)):
-        label = "Z" if i == 0 else f"S{i}"
+        label = "Z" if i == 0 else variables_holgura[i - 1]
 
-        # Resaltar la fila pivote completa si es la fila correspondiente
-        if i == row_pivote:
-            row_label = tk.Label(frame_derecho, text=label, borderwidth=1, relief="solid", width=10, bg="lightgreen")
+        # Resaltar la primera celda de la fila pivote
+        if hay_valores_negativos_en_z and i == row_pivote:
+            row_label = tk.Label(frame_derecho, text=label, borderwidth=1, relief="solid", width=10, bg="yellow")
         else:
             row_label = tk.Label(frame_derecho, text=label, borderwidth=1, relief="solid", width=10)
         row_label.grid(row=row_start + i + 2, column=0)
@@ -158,27 +178,43 @@ def mostrar_tabla(table, paso_numero):
         for j in range(len(table[i])):
             valor = round(table[i, j], 3) if isinstance(table[i, j], float) else table[i, j]
 
-            # Resaltar la celda de la variable de entrada (columna pivote) y la variable de salida (fila pivote)
-            if j == col_pivote and i == row_pivote:
-                # Intersección entre fila y columna pivote
-                cell_label = tk.Label(frame_derecho, text=valor, borderwidth=1, relief="solid", width=10, bg="lightpink")
-            elif j == col_pivote:
-                # Columna pivote (variable de entrada)
-                cell_label = tk.Label(frame_derecho, text=valor, borderwidth=1, relief="solid", width=10, bg="lightblue")
-            elif i == row_pivote:
-                # Fila pivote (variable de salida)
-                cell_label = tk.Label(frame_derecho, text=valor, borderwidth=1, relief="solid", width=10, bg="lightgreen")
+            # Resaltar solo si hay valores negativos en Z
+            if hay_valores_negativos_en_z:
+                if j == col_pivote and i == row_pivote:
+                    # Intersección entre fila y columna pivote
+                    cell_label = tk.Label(frame_derecho, text=valor, borderwidth=1, relief="solid", width=10, bg="lightpink")
+                elif j == col_pivote and i != row_pivote:
+                    # Columna pivote (variable de entrada), resalta la primera celda 
+                    if i == 0:
+                        cell_label = tk.Label(frame_derecho, text=valor, borderwidth=1, relief="solid", width=10, bg="lightblue")
+                    else:
+                        cell_label = tk.Label(frame_derecho, text=valor, borderwidth=1, relief="solid", width=10, bg="lightblue")
+                elif i == row_pivote and j != col_pivote:
+                    # Fila pivote (variable de salida), resaltar la primera celda 
+                    if j == 0:
+                        cell_label = tk.Label(frame_derecho, text=valor, borderwidth=1, relief="solid", width=10, bg="lightgreen")
+                    else:
+                        cell_label = tk.Label(frame_derecho, text=valor, borderwidth=1, relief="solid", width=10, bg="lightgreen")
+                else:
+                    cell_label = tk.Label(frame_derecho, text=valor, borderwidth=1, relief="solid", width=10)
             else:
+                # Sin resaltar si no hay valores negativos en Z
                 cell_label = tk.Label(frame_derecho, text=valor, borderwidth=1, relief="solid", width=10)
             cell_label.grid(row=row_start + i + 2, column=j + 1)
 
-    # Indicar la variable de entrada y salida
-    variable_entrada = f"X{col_pivote + 1}" if col_pivote < num_variables else f"S{col_pivote - num_variables + 1}"
-    variable_salida = f"S{row_pivote}"
+    if hay_valores_negativos_en_z:
+        # Indicar la variable de entrada y salida solo si hay valores negativos en Z
+        variable_entrada = f"X{col_pivote + 1}" if col_pivote < num_variables else f"S{col_pivote - num_variables + 1}"
+        variable_salida = variables_holgura[row_pivote - 1]
 
-    # Etiquetas de las variables de entrada y salida
-    tk.Label(frame_derecho, bg='#f8d7da',text=f"Variable de entrada: {variable_entrada}", font=("Helvetica", 10)).grid(row=row_start + len(table) + 2, column=0, columnspan=len(table[0]) + 1, pady=5)
-    tk.Label(frame_derecho, bg='#f8d7da', text=f"Variable de salida: {variable_salida}", font=("Helvetica", 10)).grid(row=row_start + len(table) + 3, column=0, columnspan=len(table[0]) + 1, pady=5)
+        # Actualizar los nombres de las variables
+        variables_holgura[row_pivote - 1] = variable_entrada
+        
+
+        # Etiquetas de las variables de entrada y salida
+        tk.Label(frame_derecho, bg='#f8d7da', text=f"Variable de entrada: {variable_entrada}", font=("Helvetica", 10)).grid(row=row_start + len(table) + 2, column=0, columnspan=len(table[0]) + 1, pady=5)
+        tk.Label(frame_derecho, bg='#f8d7da', text=f"Variable de salida: {variable_salida}", font=("Helvetica", 10)).grid(row=row_start + len(table) + 3, column=0, columnspan=len(table[0]) + 1, pady=5)
+
 
 def crear_tabla_simplex(c, A, b):
     num_restricciones = len(A)
