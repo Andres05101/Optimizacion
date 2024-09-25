@@ -370,8 +370,10 @@ class Metodo_Simplex:
 
         headers = [""] + self.variables_basicas + ["CR"]
         for j, label in enumerate(headers):
-            bg_color = "yellow" if hay_valores_negativos_en_z and j - 1 == np.argmin(table[0, :-1]) else None
-            tk.Label(self.frame_derecho, text=label, borderwidth=1, relief="solid", width=10, bg=bg_color).grid(row=row_start + 1, column=j)
+            if hay_valores_negativos_en_z and j - 1 == np.argmin(table[0, :-1]):  # Si j - 1 (ajuste por el índice de las etiquetas) es la columna pivote
+                tk.Label(frame_derecho, text=label, borderwidth=1, relief="solid", width=10, bg="yellow").grid(row=row_start + 1, column=j)
+            else:
+                tk.Label(frame_derecho, text=label, borderwidth=1, relief="solid", width=10).grid(row=row_start + 1, column=j)
 
         if hay_valores_negativos_en_z:
             col_pivote = np.argmin(table[0, :-1])
@@ -383,7 +385,11 @@ class Metodo_Simplex:
 
         for i in range(len(table)):
             label = "Z" if i == 0 else self.variables_holgura[i - 1]
-            row_label = tk.Label(self.frame_derecho, text=label, borderwidth=1, relief="solid", width=10)
+            # Resaltar la primera celda de la fila pivote
+            if hay_valores_negativos_en_z and i == row_pivote:
+                row_label = tk.Label(frame_derecho, text=label, borderwidth=1, relief="solid", width=10, bg="yellow")
+            else:
+                row_label = tk.Label(frame_derecho, text=label, borderwidth=1, relief="solid", width=10)
             row_label.grid(row=row_start + i + 2, column=0)
 
             for j in range(len(table[i])):

@@ -206,7 +206,6 @@ def mostrar_tabla(table, paso_numero):
         # Indicar la variable de entrada y salida solo si hay valores negativos en Z
         variable_entrada = f"X{col_pivote + 1}" if col_pivote < num_variables else f"S{col_pivote - num_variables + 1}"
         variable_salida = variables_holgura[row_pivote - 1]
-
         # Actualizar los nombres de las variables
         variables_holgura[row_pivote - 1] = variable_entrada
         
