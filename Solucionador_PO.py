@@ -276,7 +276,9 @@ class Metodo_Simplex:
         self.frame_derecho = frame_derecho
         self.variables_basicas = []
         self.variables_holgura = []
-        
+    
+        self.valores_finales = {f'X{i+1}': 0 for i in range(num_variables)}  # Inicializamos todas las Xn en 0
+   
     def convertir_a_numero(self, valor):
         try:
             return float(valor)  # Intenta convertir a decimal
@@ -343,18 +345,27 @@ class Metodo_Simplex:
             messagebox.showinfo("Optimización", "No se encontró una solución óptima.")
 
     def mostrar_solucion(self, table):
-        solucion = [table[i, -1] for i in range(1, len(table))]
+        # Diccionario para almacenar el valor de cada Xn, inicialmente todos en 0
+        valores_variables = {f'X{i + 1}': 0 for i in range(self.num_variables)}
+
+        # Guardamos los valores de las variables básicas (holguras o Xn) que están en la base
+        for i in range(1, len(table)):
+            variable_basica = self.variables_holgura[i - 1]
+            valor = table[i, -1]
+
+            # Si la variable básica es una variable de decisión (Xn), le asignamos su valor
+            if variable_basica.startswith('X'):
+                valores_variables[variable_basica] = valor
+
         valor_optimo = table[0, -1]  # Valor óptimo de Z
 
-        # Mostrar el mensaje en el frame derecho debajo de las tablas generadas
+        # Crear el mensaje de solución
         mensaje = f"Valor óptimo de Z: {valor_optimo}\n\nSolución óptima alcanzada:\n"
-        for i in range(len(solucion)):
-            mensaje += f"X{i + 1} = {solucion[i]}\n"
+        for var, valor in valores_variables.items():
+            mensaje += f"{var} = {valor}\n"
 
-        # Encuentra el número de la última fila utilizada
+        # Mostrar el mensaje en el frame derecho debajo de las tablas generadas
         num_filas_ocupadas = self.frame_derecho.grid_size()[1]  # Obtiene la cantidad de filas ya usadas en grid
-
-        # Agrega el mensaje debajo de las tablas
         label_solucion = tk.Label(self.frame_derecho, text=mensaje, justify="left", font=("Helvetica", 10))
         label_solucion.grid(row=num_filas_ocupadas + 1, column=0, columnspan=10, padx=10, pady=10)
 
@@ -447,41 +458,52 @@ class Metodo_Simplex:
 
             pasos.append(table.copy())
 
-ventana = tk.Tk()
-ventana.geometry("950x600")
-ventana.title("Resolución de Problemas de Programación Lineal")
-ventana.configure(bg='#f8d7da')
+root = tk.Tk()
+root.geometry("950x600")
+root.title("Resolución de Problemas de Programación Lineal")
+root.configure(bg='#f8d7da')
 
-# Crear frames para organizar la interfaz
-frame_izquierdo = tk.Frame(ventana)
+# Frame principal
+main_frame = tk.Frame(root)
+main_frame.pack(fill=tk.BOTH, expand=1)
+main_frame.config(bg="#f8d7da")
+
+# Canvas para el scroll
+canvas = tk.Canvas(main_frame)
+canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
+canvas.config(bg="#f8d7da")
+
+# Scrollbar
+scrollbar = tk.Scrollbar(main_frame, orient=tk.VERTICAL, command=canvas.yview)
+scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+scrollbar.config(bg="#f8d7da")
+
+# Configurar el canvas para usar el scrollbar
+canvas.configure(yscrollcommand=scrollbar.set)
+canvas.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+# Crear un Frame dentro del canvas
+second_frame = tk.Frame(canvas)
+second_frame.config(bg="#f8d7da")
+
+# Añadir el frame secundario al canvas
+canvas.create_window((0, 0), window=second_frame, anchor="nw")
+
+# Crear los frames izquierdo y derecho
+frame_izquierdo = tk.Frame(second_frame, bg='#f8d7da')
 frame_izquierdo.pack(side=tk.LEFT, padx=10, pady=10)
 frame_izquierdo.config(bg='#f8d7da')
-frame_derecho = tk.Frame(ventana)
-frame_derecho.config(bg='#f8d7da')
+
+frame_derecho = tk.Frame(second_frame, bg='#f8d7da')
 frame_derecho.pack(side=tk.RIGHT, padx=10, pady=10)
-
-# Crear un canvas y un scrollbar para la ventana principal
-canvas = tk.Canvas(ventana, bg='#f8d7da')
-scrollbar = tk.Scrollbar(ventana, orient="vertical", command=canvas.yview)
-scrollable_frame = tk.Frame(canvas, bg='#f8d7da')
-
-# Configurar el canvas
-canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-scrollable_frame.bind(
-    "<Configure>",
-    lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-)
-
-# Configurar el peso de las columnas y filas para el canvas y el scrollbar
-ventana.grid_rowconfigure(0, weight=1)
-ventana.grid_columnconfigure(0, weight=1)
+frame_derecho.config(bg='#f8d7da')
 
 # Menú desplegable para Maximización o Minimización
 opciones = ["Maximizar", "Minimizar"]
 metodo_seleccionado = tk.StringVar()
 metodo_seleccionado.set(opciones[0])  # Valor por defecto
 tk.Label(frame_izquierdo, bg='#f8d7da', text="Seleccione Maximización o Minimización:").grid(row=0, column=0, padx=10, pady=10, columnspan=2)
-menu_desplegable = tk.OptionMenu(frame_izquierdo, metodo_seleccionado, *opciones, command=actualizar_seleccion)
+menu_desplegable = tk.OptionMenu(frame_izquierdo, metodo_seleccionado, *opciones)
 menu_desplegable.grid(row=1, column=0, padx=10, pady=10, columnspan=2)
 
 # Menú desplegable para Método Gráfico o Simplex
@@ -501,7 +523,7 @@ tk.Label(frame_izquierdo, bg='#f8d7da', text="Cantidad de Restricciones:").grid(
 resCan = tk.Entry(frame_izquierdo)
 resCan.grid(row=5, column=1, padx=10, pady=10)
 
-# Mostrar botón para resolver
+# Botón para confirmar
 tk.Button(frame_izquierdo, bg='#f8d7da', text="Confirmar", command=confirmar_variables).grid(row=6, column=0, columnspan=2, pady=10)
 
-ventana.mainloop()
+root.mainloop()
