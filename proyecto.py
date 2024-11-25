@@ -150,7 +150,7 @@ def guardar_datos():
     frame_botones.grid(row=9, columnspan=2, pady=10)
 
     # Colocar los botones dentro del frame con grid()
-    btn_calcular_dijkstra = tk.Button(frame_botones, text="Calcular Dijkstra", command=lambda: ejecutar_dijkstra(matriz, nombres_nodos))
+    btn_calcular_dijkstra = tk.Button(frame_botones, text="Calcular Dijkstra", command=lambda: ejecutar_dijkstra(matriz, nombres_nodos, G))
     btn_calcular_dijkstra.grid(row=0, column=0, padx=10)  # Espaciado horizontal
 
     btn_calcular_bellman = tk.Button(frame_botones, text="Calcular Bellman-Ford", command=lambda: ejecutar_bellman_ford(matriz, nombres_nodos))
@@ -187,18 +187,16 @@ def mostrar_adyacentes(G, nombres_nodos):
         return
 
     # Obtener los nodos adyacentes
-    adyacentes_ida = list(G.successors(nodo))  # Nodos que tienen aristas salientes desde el nodo
-    adyacentes_vuelta = list(G.predecessors(nodo))  # Nodos que tienen aristas entrantes hacia el nodo
+    adyacentes_ida = list(G.successors(nodo))  # Nodos con aristas salientes desde el nodo
+    adyacentes_vuelta = list(G.predecessors(nodo))  # Nodos con aristas entrantes hacia el nodo
     lazos = [v for u, v, d in G.edges(data=True) if u == v and u == nodo]  # Nodos con lazo consigo mismos
 
     # Clasificar los nodos adyacentes según dirección
-    resultado = f"Nodos adyacentes a {nodo}:"
-    if adyacentes_ida or adyacentes_vuelta or lazos:
-        # Mostrar nodos adyacentes sin clasificar
-        adyacentes_totales = set(adyacentes_ida + adyacentes_vuelta + lazos)
-        resultado += " " + ", ".join(adyacentes_totales) + "\n\n"
+    resultado = f"Nodos adyacentes a {nodo}:\n"
+    adyacentes_totales = set(adyacentes_ida + adyacentes_vuelta + lazos)
+    if adyacentes_totales:
+        resultado += ", ".join(adyacentes_totales) + "\n\n"
 
-        # Mostrar nodos clasificados según condición
         if adyacentes_ida:
             resultado += "Nodos de ida: " + ", ".join(adyacentes_ida) + "\n"
         if adyacentes_vuelta:
@@ -210,15 +208,30 @@ def mostrar_adyacentes(G, nombres_nodos):
 
     lbl_adyacentes.config(text=resultado)
 
-    # Destacar nodos adyacentes en el grafo
-    colores_nodos = ['purple' if n in adyacentes_totales or n == nodo else 'orange' for n in G.nodes()]
+    # Cambiar el color de los nodos adyacentes
+    colores_nodos = [
+        'purple' if n in adyacentes_totales or n == nodo else 'orange' for n in G.nodes()
+    ]
 
-    # Redibujar el grafo
+    # Redibujar el grafo con los cambios
     fig, ax = plt.subplots(figsize=(6, 4))
     pos = nx.spring_layout(G)  # Disposición del grafo
-    nx.draw(G, pos, with_labels=True, node_color=colores_nodos, node_size=500, font_weight='bold', ax=ax)
-    nx.draw_networkx_edge_labels(G, pos, edge_labels={(u, v): d['weight'] for u, v, d in G.edges(data=True)}, ax=ax)
-    plt.show()
+    nx.draw(
+        G, pos, with_labels=True, node_color=colores_nodos, 
+        node_size=500, font_weight='bold', ax=ax
+    )
+    nx.draw_networkx_edge_labels(
+        G, pos,
+        edge_labels={(u, v): d['weight'] for u, v, d in G.edges(data=True)},
+        ax=ax
+    )
+
+    # Actualizar el grafo mostrado en la interfaz
+    for widget in frame_grafo.winfo_children():
+        widget.destroy()
+    canvas = FigureCanvasTkAgg(fig, master=frame_grafo)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
 def dijkstra_con_ruta(matriz, inicio, fin):
     n = len(matriz)
@@ -254,7 +267,8 @@ def dijkstra_con_ruta(matriz, inicio, fin):
 
     return distancias, ruta
 
-def ejecutar_dijkstra(matriz, nombres_nodos):
+def ejecutar_dijkstra(matriz, nombres_nodos,G):
+    lbl_resultado.config(text="")
     inicio_nodo = entry_nodo_inicio.get().upper()
     fin_nodo = entry_nodo_final.get().upper()
 
@@ -268,9 +282,10 @@ def ejecutar_dijkstra(matriz, nombres_nodos):
     distancias, ruta = dijkstra_con_ruta(matriz, inicio, fin)
 
     if distancias[fin] == float('inf'):  # Validar si no hay conexión
-        lbl_resultado.config(text=f"No posee")
+        lbl_resultado.config(text=f"No hay ruta desde {inicio_nodo} hasta {fin_nodo}.")
         return
 
+    # Mostrar resultados en el label
     resultados = f"Distancias desde {inicio_nodo}:\n" + "\n".join(
         [f"{nombres_nodos[i]}: {'∞' if dist == float('inf') else dist}" for i, dist in enumerate(distancias)]
     )
@@ -278,6 +293,35 @@ def ejecutar_dijkstra(matriz, nombres_nodos):
     peso_total = distancias[fin]
     resultados += f"\n\nRuta más corta de {inicio_nodo} a {fin_nodo}:\n{ruta_str}\n\nPeso total de la ruta: {peso_total}"
     lbl_resultado.config(text=resultados)
+
+    # Resaltar los nodos en la ruta más corta
+    nodos_en_ruta = set(nombres_nodos[i] for i in ruta)
+
+    colores_nodos = ['brown' if n in nodos_en_ruta else 'orange' for n in nombres_nodos]
+
+    # Redibujar el grafo con los cambios
+    fig, ax = plt.subplots(figsize=(6, 4))
+    pos = nx.spring_layout(G)  # Disposición del grafo
+    nx.draw(
+        G, pos, with_labels=True, node_color=colores_nodos, 
+        node_size=500, font_weight='bold', ax=ax
+    )
+    nx.draw_networkx_edges(
+        G, pos, edgelist=[(nombres_nodos[u], nombres_nodos[v]) for u, v in zip(ruta[:-1], ruta[1:])],
+        edge_color="brown", width=2
+    )
+    nx.draw_networkx_edge_labels(
+        G, pos,
+        edge_labels={(u, v): d['weight'] for u, v, d in G.edges(data=True)},
+        ax=ax
+    )
+
+    # Actualizar el grafo mostrado en la interfaz
+    for widget in frame_grafo.winfo_children():
+        widget.destroy()
+    canvas = FigureCanvasTkAgg(fig, master=frame_grafo)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
 def bellman_ford(matriz, inicio):
     n = len(matriz)
@@ -303,6 +347,7 @@ def bellman_ford(matriz, inicio):
     return distancias, predecesores
 
 def ejecutar_bellman_ford(matriz, nombres_nodos):
+    lbl_resultado.config(text="")
     inicio_nodo = entry_nodo_inicio.get().upper()
 
     if inicio_nodo not in nombres_nodos:
