@@ -59,7 +59,9 @@ def guardar_datos():
                     G.add_edge(nombres_nodos[i], nombres_nodos[j], weight=matriz[i][j], dir="self")
                     lazos.append((nombres_nodos[i], nombres_nodos[j]))
                 elif matriz[i][j] == matriz[j][i] and i < j:
-                    G.add_edge(nombres_nodos[i], nombres_nodos[j], weight=matriz[i][j], dir="none")  # Sin flecha
+                    # Agregar ambas direcciones si los pesos son iguales
+                    G.add_edge(nombres_nodos[i], nombres_nodos[j], weight=matriz[i][j], dir="none")  # Flecha de ida
+                    G.add_edge(nombres_nodos[j], nombres_nodos[i], weight=matriz[i][j], dir="none")  # Flecha de vuelta
                 elif matriz[i][j] != matriz[j][i]:
                     G.add_edge(nombres_nodos[i], nombres_nodos[j], weight=matriz[i][j], dir="forward")  # Flecha hacia adelante
                 arcos.append((nombres_nodos[i], nombres_nodos[j]))
@@ -67,26 +69,6 @@ def guardar_datos():
     conjunto_vertices = "{" + ", ".join(nombres_nodos) + "}"
     conjunto_arcos = "{" + ", ".join([f"({a[0]}, {a[1]}, {G.edges[a]['weight']})" for a in arcos if G.has_edge(a[0], a[1])]) + "}"
 
-    def formatear_texto(texto, ancho_max):
-        lineas = []
-        while len(texto) > ancho_max:
-            corte = texto.rfind(",", 0, ancho_max) + 1
-            if corte == 0:
-                corte = ancho_max
-            lineas.append(texto[:corte])
-            texto = texto[corte:].strip()
-        lineas.append(texto)
-        return "\n".join(lineas)
-
-    ancho_max = 50
-    lbl_vertices.config(
-    text=f"V = {formatear_texto(conjunto_vertices, ancho_max)}",
-    fg="orange"  # Color para el texto de los vértices
-    )
-    lbl_arcos.config(
-    text=f"A = {formatear_texto(conjunto_arcos, ancho_max)}",
-    fg="black"  # Color para el texto de los arcos
-    )
     # Colores para los nodos y aristas (usando los colores de los conceptos)
     nodo_color = "orange"
     arista_color = "black"
@@ -101,43 +83,43 @@ def guardar_datos():
     arrows = [edge for edge in G.edges(data=True) if edge[2]["dir"] == "forward"]
     self_loops = [edge for edge in G.edges(data=True) if edge[2]["dir"] == "self"]  # Lazos
 
-# Dibujar nodos y conexiones generales
+    # Dibujar nodos y conexiones generales
     nx.draw(
-    G, pos, with_labels=True, node_color=nodo_color, font_weight='bold',
-    node_size=700, ax=ax, arrows=False
-)
-
-# Dibujar las flechas para las conexiones dirigidas
-    nx.draw_networkx_edges(
-    G, pos, edgelist=arrows, arrowsize=20, edge_color=arista_color
+        G, pos, with_labels=True, node_color=nodo_color, font_weight='bold',
+        node_size=700, ax=ax, arrows=False
     )
 
-# Dibujar aristas bidireccionales como líneas sólidas sin flechas
+    # Dibujar las flechas para las conexiones dirigidas
     nx.draw_networkx_edges(
-    G, pos, edgelist=no_arrows, style="solid", edge_color=arista_color, arrows=False
+        G, pos, edgelist=arrows, arrowsize=20, edge_color=arista_color
     )
 
-# Dibujar los self-loops (lazos) 
+    # Dibujar aristas bidireccionales como líneas sólidas sin flechas
     nx.draw_networkx_edges(
-    G, pos, edgelist=self_loops, style="solid", edge_color=arista_color,
-    connectionstyle="arc3,rad=0.2", ax=ax, arrows=False
-)
+        G, pos, edgelist=no_arrows, style="solid", edge_color=arista_color, arrows=False
+    )
 
-# Dibujar etiquetas de pesos en las aristas
+    # Dibujar los self-loops (lazos) 
+    nx.draw_networkx_edges(
+        G, pos, edgelist=self_loops, style="solid", edge_color=arista_color,
+        connectionstyle="arc3,rad=0.2", ax=ax, arrows=False
+    )
+
+    # Dibujar etiquetas de pesos en las aristas
     nx.draw_networkx_edge_labels(
-    G, pos,
-    edge_labels={(u, v): d['weight'] for u, v, d in G.edges(data=True)},
-    ax=ax,
-    label_pos=0.3,
-    font_color=peso_color
+        G, pos,
+        edge_labels={(u, v): d['weight'] for u, v, d in G.edges(data=True)},
+        ax=ax,
+        label_pos=0.3,
+        font_color=peso_color
     )
-
 
     for widget in frame_grafo.winfo_children():
         widget.destroy()
     canvas = FigureCanvasTkAgg(fig, master=frame_grafo)
     canvas.draw()
     canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
 
 
     # Mostrar el botón de Dijkstra y el label de resultados de Dijkstra
@@ -150,10 +132,10 @@ def guardar_datos():
     frame_botones.grid(row=9, columnspan=2, pady=10)
 
     # Colocar los botones dentro del frame con grid()
-    btn_calcular_dijkstra = tk.Button(frame_botones, text="Calcular Dijkstra", command=lambda: ejecutar_dijkstra(matriz, nombres_nodos, G))
+    btn_calcular_dijkstra = tk.Button(frame_botones, text="Calcular Dijkstra", command=lambda: [lbl_resultado.config(text=""), ejecutar_dijkstra(matriz, nombres_nodos, G)])
     btn_calcular_dijkstra.grid(row=0, column=0, padx=10)  # Espaciado horizontal
 
-    btn_calcular_bellman = tk.Button(frame_botones, text="Calcular Bellman-Ford", command=lambda: ejecutar_bellman_ford(matriz, nombres_nodos))
+    btn_calcular_bellman = tk.Button(frame_botones, text="Calcular Bellman-Ford", command=lambda: [lbl_resultado.config(text=""), ejecutar_bellman_ford(matriz, nombres_nodos)])
     btn_calcular_bellman.grid(row=0, column=1, padx=10)  # Espaciado horizontal
 
     # Entrada y botón para obtener nodos adyacentes
@@ -178,8 +160,7 @@ def guardar_datos():
     entry_nodo_final.grid(row=6, column=1)
 
 def mostrar_adyacentes(G, nombres_nodos):
-    # Limpiar el contenido del label antes de actualizar
-    lbl_adyacentes.config(text="")
+    lbl_adyacentes.config(text="")  # Limpia el texto del label
 
     nodo = entry_nodo_adyacente.get().upper()
     if nodo not in nombres_nodos:
@@ -195,8 +176,8 @@ def mostrar_adyacentes(G, nombres_nodos):
     resultado = f"Nodos adyacentes a {nodo}:\n"
     adyacentes_totales = set(adyacentes_ida + adyacentes_vuelta + lazos)
     if adyacentes_totales:
+        resultado +=""
         resultado += ", ".join(adyacentes_totales) + "\n\n"
-
         if adyacentes_ida:
             resultado += "Nodos de ida: " + ", ".join(adyacentes_ida) + "\n"
         if adyacentes_vuelta:
@@ -204,29 +185,58 @@ def mostrar_adyacentes(G, nombres_nodos):
         if lazos:
             resultado += "Conexiones consigo mismo: " + ", ".join(lazos) + "\n"
     else:
+        resultado +=""
+        lbl_resultado.config(text="")
         resultado += "No hay nodos adyacentes.\n"
 
     lbl_adyacentes.config(text=resultado)
 
     # Cambiar el color de los nodos adyacentes
     colores_nodos = [
-        'purple' if n in adyacentes_totales or n == nodo else 'orange' for n in G.nodes()
+        'purple' if n in adyacentes_totales else 'orange' for n in G.nodes()
     ]
 
-    # Redibujar el grafo con los cambios
+    # Redibujar el grafo con los cambios, respetando los atributos originales
     fig, ax = plt.subplots(figsize=(6, 4))
-    pos = nx.spring_layout(G)  # Disposición del grafo
+    pos = nx.spring_layout(G, seed=42)  # Disposición del grafo
+
+    # Dibujar nodos
     nx.draw(
         G, pos, with_labels=True, node_color=colores_nodos, 
         node_size=500, font_weight='bold', ax=ax
     )
+
+    # Dibujar aristas diferenciadas
+    no_arrows = [edge for edge in G.edges(data=True) if edge[2]["dir"] == "none"]
+    arrows = [edge for edge in G.edges(data=True) if edge[2]["dir"] == "forward"]
+    self_loops = [edge for edge in G.edges(data=True) if edge[2]["dir"] == "self"]
+
+    # Dibujar flechas para las conexiones dirigidas
+    nx.draw_networkx_edges(
+        G, pos, edgelist=arrows, arrowsize=20, edge_color="black"
+    )
+
+    # Dibujar aristas bidireccionales como líneas sólidas sin flechas
+    nx.draw_networkx_edges(
+        G, pos, edgelist=no_arrows, style="solid", edge_color="black", arrows=False
+    )
+
+    # Dibujar los self-loops (lazos)
+    nx.draw_networkx_edges(
+        G, pos, edgelist=self_loops, style="solid", edge_color="black",
+        connectionstyle="arc3,rad=0.2", ax=ax, arrows=False
+    )
+
+    # Dibujar etiquetas de pesos en las aristas
     nx.draw_networkx_edge_labels(
         G, pos,
         edge_labels={(u, v): d['weight'] for u, v, d in G.edges(data=True)},
-        ax=ax
+        ax=ax,
+        label_pos=0.3,
+        font_color="green"
     )
 
-    # Actualizar el grafo mostrado en la interfaz
+    # Actualizar el grafo en la interfaz
     for widget in frame_grafo.winfo_children():
         widget.destroy()
     canvas = FigureCanvasTkAgg(fig, master=frame_grafo)
@@ -234,6 +244,7 @@ def mostrar_adyacentes(G, nombres_nodos):
     canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
 def dijkstra_con_ruta(matriz, inicio, fin):
+    lbl_resultado.config(text="")
     n = len(matriz)
     distancias = [float('inf')] * n
     distancias[inicio] = 0
@@ -267,10 +278,15 @@ def dijkstra_con_ruta(matriz, inicio, fin):
 
     return distancias, ruta
 
-def ejecutar_dijkstra(matriz, nombres_nodos,G):
-    lbl_resultado.config(text="")
+def ejecutar_dijkstra(matriz, nombres_nodos, G):
+    lbl_resultado.config(text="")  # Limpia el texto del label
     inicio_nodo = entry_nodo_inicio.get().upper()
     fin_nodo = entry_nodo_final.get().upper()
+
+    # Validar que no haya pesos negativos en la matriz
+    if np.any(np.array(matriz) < 0):  # np.any devuelve True si algún elemento cumple la condición
+        messagebox.showerror("Error", "No se puede realizar Dijkstra, por favor use Bellman-Ford.")
+        return
 
     if inicio_nodo not in nombres_nodos or fin_nodo not in nombres_nodos:
         messagebox.showerror("Error", f"Uno de los nodos '{inicio_nodo}' o '{fin_nodo}' no existe.")
@@ -282,9 +298,14 @@ def ejecutar_dijkstra(matriz, nombres_nodos,G):
     distancias, ruta = dijkstra_con_ruta(matriz, inicio, fin)
 
     if distancias[fin] == float('inf'):  # Validar si no hay conexión
+        lbl_resultado.config(text="")
+        resultados=f""
+        lbl_resultado.config(text="")
         lbl_resultado.config(text=f"No hay ruta desde {inicio_nodo} hasta {fin_nodo}.")
         return
-
+    
+    lbl_resultado.config(text="")
+    resultados=f""
     # Mostrar resultados en el label
     resultados = f"Distancias desde {inicio_nodo}:\n" + "\n".join(
         [f"{nombres_nodos[i]}: {'∞' if dist == float('inf') else dist}" for i, dist in enumerate(distancias)]
@@ -294,26 +315,51 @@ def ejecutar_dijkstra(matriz, nombres_nodos,G):
     resultados += f"\n\nRuta más corta de {inicio_nodo} a {fin_nodo}:\n{ruta_str}\n\nPeso total de la ruta: {peso_total}"
     lbl_resultado.config(text=resultados)
 
-    # Resaltar los nodos en la ruta más corta
-    nodos_en_ruta = set(nombres_nodos[i] for i in ruta)
-
-    colores_nodos = ['brown' if n in nodos_en_ruta else 'orange' for n in nombres_nodos]
-
-    # Redibujar el grafo con los cambios
+    # Redibujar el grafo con las aristas diferenciadas
     fig, ax = plt.subplots(figsize=(6, 4))
-    pos = nx.spring_layout(G)  # Disposición del grafo
+    pos = nx.spring_layout(G, seed=42)
+
+    # Dibujar las aristas diferenciadas
+    no_arrows = [edge for edge in G.edges(data=True) if edge[2]["dir"] == "none"]
+    arrows = [edge for edge in G.edges(data=True) if edge[2]["dir"] == "forward"]
+    self_loops = [edge for edge in G.edges(data=True) if edge[2]["dir"] == "self"]  # Lazos
+
+    # Dibujar nodos
+    colores_nodos = ['brown' if n in {nombres_nodos[i] for i in ruta} else 'orange' for n in G.nodes()]
     nx.draw(
         G, pos, with_labels=True, node_color=colores_nodos, 
-        node_size=500, font_weight='bold', ax=ax
+        node_size=500, font_weight='bold', ax=ax, arrows=False
     )
+
+    # Dibujar aristas dirigidas
     nx.draw_networkx_edges(
-        G, pos, edgelist=[(nombres_nodos[u], nombres_nodos[v]) for u, v in zip(ruta[:-1], ruta[1:])],
-        edge_color="brown", width=2
+        G, pos, edgelist=arrows, arrowsize=20, edge_color="black"
     )
+
+    # Dibujar aristas bidireccionales
+    nx.draw_networkx_edges(
+        G, pos, edgelist=no_arrows, style="solid", edge_color="black", arrows=False
+    )
+
+    # Dibujar lazos
+    nx.draw_networkx_edges(
+        G, pos, edgelist=self_loops, style="solid", edge_color="black",
+        connectionstyle="arc3,rad=0.2", ax=ax, arrows=False
+    )
+
+    # Dibujar etiquetas de pesos
     nx.draw_networkx_edge_labels(
         G, pos,
         edge_labels={(u, v): d['weight'] for u, v, d in G.edges(data=True)},
-        ax=ax
+        ax=ax,
+        label_pos=0.3,
+        font_color="green"
+    )
+
+    # Destacar la ruta más corta
+    nx.draw_networkx_edges(
+        G, pos, edgelist=[(nombres_nodos[u], nombres_nodos[v]) for u, v in zip(ruta[:-1], ruta[1:])],
+        edge_color="brown", width=2
     )
 
     # Actualizar el grafo mostrado en la interfaz
@@ -362,21 +408,26 @@ def ejecutar_bellman_ford(matriz, nombres_nodos):
         lbl_resultado.config(text=str(e))
         return
 
-    resultados = f"Distancias desde {inicio_nodo}:\n" + "\n".join(
-        [f"{nombres_nodos[i]}: {'∞' if dist == float('inf') else dist}" for i, dist in enumerate(distancias)]
-    )
-    rutas = []
-    for i in range(len(predecesores)):
-        if predecesores[i] is not None or i == inicio:
+    # Usar la nueva función para mostrar resultados
+    resultados = mostrar_resultados_bellman_ford(distancias, predecesores, nombres_nodos, inicio)
+    lbl_resultado.config(text=resultados)
+
+def mostrar_resultados_bellman_ford(distancias, predecesores, nombres_nodos, inicio):
+    resultados = []
+    for i, distancia in enumerate(distancias):
+        if distancia == float('inf'):
+            ruta = "No alcanzable"
+        else:
             ruta = []
             actual = i
             while actual is not None:
                 ruta.insert(0, nombres_nodos[actual])
                 actual = predecesores[actual]
-            rutas.append(f"{nombres_nodos[i]}: {' -> '.join(ruta)}")
+            ruta = " -> ".join(ruta)
 
-    resultados += "\n\nRutas más cortas:\n" + "\n".join(rutas)
-    lbl_resultado.config(text=resultados)
+        resultados.append(f"{nombres_nodos[i]}: {distancia if distancia != float('inf') else '∞'} (Ruta: {ruta})")
+
+    return "\n".join(resultados)
 
 ventana = tk.Tk()
 ventana.title("Editor de Matrices y Grafo")
@@ -397,8 +448,7 @@ conceptos = {
     "Nodo": "Es un punto en el grafo que puede estar conectado con otros nodos.",
     "Nodo adyacente": "Es un nodo que está directamente conectado a otro.",
     "Peso": "Valor asociado a una arista, puede representar distancia, costo, etc.",
-    "Ruta más corta": "Camino que conecta dos nodos minimizando el peso total.",
-    "Subgrafo": "Es un subconjunto de nodos y aristas extraído de un grafo más grande."
+    "Ruta más corta": "Camino que conecta dos nodos minimizando el peso total."
 }
 
 # Colores para cada concepto
